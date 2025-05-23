@@ -1,17 +1,18 @@
-﻿using AuthApi.Models;
+﻿using AuthApi.Entities;
 using Microsoft.AspNetCore.Identity;
 
 namespace AuthApi.Seed
 {
     public class AdminSeeder
     {
-        public static async Task SeedAsync(IServiceProvider services)
+        public static async Task SeedAsync(WebApplication app)
         {
-            var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
-            var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+            using var scope = app.Services.CreateScope();
+            var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
             const string adminEmail = "admin@teste.com";
-            const string adminPassword = "Admin";
+            const string adminPassword = "Admin@Admin123";
             const string adminRole = "Admin";
 
             if (!await roleManager.RoleExistsAsync(adminRole))

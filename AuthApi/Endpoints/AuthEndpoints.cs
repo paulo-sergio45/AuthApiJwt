@@ -1,4 +1,6 @@
-﻿using AuthApi.Models;
+﻿using AuthApi.Entities;
+using AuthApi.Interface;
+using AuthApi.Models;
 using AuthApi.Services;
 using Microsoft.AspNetCore.Identity;
 
@@ -8,39 +10,41 @@ namespace AuthApi.Endpoints
     {
         public static void ConfigureEndpoints(WebApplication app)
         {
-            app.MapPost("/register", async (UserManager<ApplicationUser> userManager, RegisterModel model) =>
+            app.MapPost("/register", async (UserManager<ApplicationUser> _userManager, RegisterModel model) =>
             {
                 var user = new ApplicationUser { UserName = model.Email, Email = model.Email };
-                var result = await userManager.CreateAsync(user, model.Password);
-                return result.Succeeded ? Results.Ok("Usuário criado com sucesso!") : Results.BadRequest(result.Errors);
+                var result = await _userManager.CreateAsync(user, model.Password);
+
+
+                if (!result.Succeeded)
+                    return Results.BadRequest("Erro ao registrar usuário.");
+
+                await _userManager.AddToRoleAsync(user, "user");
+                return Results.Ok("Usuário registrado.");
+
+
             })
             .RequireAuthorization(policy => policy.RequireRole("Admin"));
 
-            app.MapPost("/login", async (UserManager<ApplicationUser> userManager, JwtService jwtService, LoginModel model, HttpContext http) =>
+            app.MapPost("/login", async (UserManager<ApplicationUser> userManager, ITokenService jwtService, LoginModel model, HttpContext http) =>
             {
                 var user = await userManager.FindByEmailAsync(model.Email);
                 if (user == null || !await userManager.CheckPasswordAsync(user, model.Password))
                     return Results.Unauthorized();
 
                 var roles = await userManager.GetRolesAsync(user);
-                var token = jwtService.GenerateToken(user, roles);
+                var token = jwtService.GenerateTokenAcces(user, roles);
 
-                http.Response.Cookies.Append("access_token", token, new CookieOptions
-                {
-                    HttpOnly = true,
-                    Secure = true,
-                    SameSite = SameSiteMode.Strict,
-                    Expires = DateTimeOffset.UtcNow.AddMinutes(60)
-                });
 
-                return Results.Ok(new { Message = "Login efetuado com sucesso!" });
-            });
+
+                return Results.Ok(new { message = "Login efetuado com sucesso!", token });
+            }).AllowAnonymous();
 
             app.MapPost("/logout", (HttpContext http) =>
             {
-                http.Response.Cookies.Delete("access_token");
+
                 return Results.Ok("Deslogado com sucesso.");
-            });
+            }).RequireAuthorization();
         }
     }
 }
