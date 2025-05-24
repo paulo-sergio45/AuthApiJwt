@@ -11,9 +11,5 @@ namespace AuthApi.DbContext
         {
             _configuration = configuration;
         }
-        //protected override void OnConfiguring(DbContextOptionsBuilder options)
-        //{
-        //    options.UseSqlServer(_configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'SqlServerConnection' not found."));
-        //}
     }
 }
