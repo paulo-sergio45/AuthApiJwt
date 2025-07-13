@@ -1,63 +1,60 @@
 using AuthApi.Entities;
-using AuthApi.Interface;
-using AuthApi.Models;
+using AuthApi.Exceptions;
+using AuthApi.Interfaces;
+using AuthApi.Models.Dtos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AuthApi.Controllers.v1
 {
     [ApiController]
     [Route("v1/[controller]")]
-    public class AuthController : ControllerBase
+    public class AuthController(IAuthService authService) : ControllerBase
     {
 
-        private readonly ILogger<AuthController> _logger;
-        private readonly UserManager<ApplicationUser> _userManager;
-        private readonly ITokenService _tokenService;
-
-        public AuthController(ILogger<AuthController> logger, UserManager<ApplicationUser> userManager, ITokenService tokenService)
-        {
-            _logger = logger;
-            _userManager = userManager;
-            _tokenService = tokenService;
-        }
+        private readonly IAuthService _authService = authService;
 
         [HttpPost]
         [Route("register")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Register(RegisterModel model)
+        public async Task<IActionResult> Register([FromBody] RegisterDto model)
         {
-            
 
-            var user = new ApplicationUser { UserName = model.Email, Email = model.Email };
-            var result = await _userManager.CreateAsync(user, model.Password);
+            string resultado = await _authService.Register(model);
 
-
-            if (!result.Succeeded)
-                return BadRequest("Erro ao registrar usuário.");
-
-            await _userManager.AddToRoleAsync(user, "user");
-            return Ok("Usuário registrado.");
+            return Ok(resultado);
 
         }
 
         [HttpPost]
         [Route("login")]
         [AllowAnonymous]
-        public async Task<IActionResult> Login(LoginModel model)
+        public async Task<IActionResult> Login([FromBody] LoginDto model)
         {
-            var user = await _userManager.FindByEmailAsync(model.Email);
-            if (user == null || !await _userManager.CheckPasswordAsync(user, model.Password))
-                return Unauthorized();
+            TokenDto resultado = await _authService.Login(model);
 
-            var roles = await _userManager.GetRolesAsync(user);
-            var token = _tokenService.GenerateTokenAcces(user, roles);
+            return Ok(resultado);
 
+        }
 
+        [HttpGet("confirm-email")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ConfirmEmail([FromQuery] ConfirmEmailDto model)
+        {
+            string resultado = await _authService.ConfirmEmail(model);
 
-            return Ok(new { message = "Login efetuado com sucesso!", token });
+            return Ok(resultado);
 
+        }
+
+        [HttpGet("send-confirmation-email")]
+        public async Task<IActionResult> SendEmailConfirmation([FromQuery] string email)
+        {
+            string resultado = await _authService.SendEmailConfirmation(email);
+
+            return Ok(resultado);
         }
     }
 }

@@ -1,6 +1,40 @@
-@AuthApi_HostAddress = http://localhost:5158
+@AuthApi_HostAddress = https://localhost:44345
+@Token = ''
 
-GET {{AuthApi_HostAddress}}/weatherforecast/
+GET {{AuthApi_HostAddress}}/v1/register/
 Accept: application/json
+Authorization: Bearer {{Token}}
+{
+  "Name": "UserName",
+  "Email": " User@email.com",
+  "PhoneNumber":PhoneNumber,
+  "Password": "Password",
+}
+
+###
+
+GET {{AuthApi_HostAddress}}/v1/login/
+Accept: application/json
+Authorization: Bearer {{Token}}
+{
+  "Email": " User@email.com",
+  "Password": "Password",
+}
+
+###
+
+GET {{AuthApi_HostAddress}}/v1/confirm-email/
+Accept: application/json
+Authorization: Bearer {{Token}}
+{
+  "UserId": " UserId",
+  "Token": "Token",
+}
+
+###
+
+GET {{AuthApi_HostAddress}}/v1/send-confirmation-email?email=User@email.com
+Accept: application/json
+Authorization: Bearer {{Token}}
 
 ###

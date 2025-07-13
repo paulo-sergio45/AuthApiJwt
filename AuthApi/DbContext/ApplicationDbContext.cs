@@ -4,12 +4,19 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AuthApi.DbContext
 {
-    public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
+    public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : IdentityDbContext<User>(options)
     {
-        protected readonly IConfiguration _configuration;
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, IConfiguration configuration) : base(options)
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            _configuration = configuration;
+            optionsBuilder.UseSqlite("DataSource=app.db;Cache=Shared").LogTo(Console.WriteLine,
+                new[] { DbLoggerCategory.Database.Command.Name },
+                Microsoft.Extensions.Logging.LogLevel.Information
+                );
+        }
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
         }
     }
 }

@@ -1,11 +1,13 @@
 using System.Text;
 using AuthApi.DbContext;
-using AuthApi.Endpoints;
 using AuthApi.Entities;
-using AuthApi.Interface;
-using AuthApi.Middleware;
-using AuthApi.Seed;
+using AuthApi.Helpers;
+using AuthApi.Helpers.Seed;
+using AuthApi.Interfaces;
+using AuthApi.Middlewares;
+using AuthApi.Models;
 using AuthApi.Services;
+using AuthApiCoreIdentity.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -14,17 +16,45 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+
+builder.Services.AddOptions<JwtSettings>()
+    .Bind(builder.Configuration.GetSection("Jwt"))
+    .ValidateDataAnnotations();
+
+builder.Services.AddOptions<MongoDBSettings>()
+    .Bind(builder.Configuration.GetSection("DatabaseSettings"))
+    .ValidateDataAnnotations();
+
+builder.Services.AddOptions<EmailSettings>()
+    .Bind(builder.Configuration.GetSection("EmailSettings"))
+    .ValidateDataAnnotations();
+
+builder.Services.AddOptions<SmtpSettings>()
+    .Bind(builder.Configuration.GetSection("SMTPSetting"))
+    .ValidateDataAnnotations();
+
+builder.Services.AddOptions<AppSettings>()
+    .Bind(builder.Configuration.GetSection("AppSettings"))
+    .ValidateDataAnnotations();
+
+
 // Add services to the container.
 //MemoryDatabase
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseInMemoryDatabase("AuthDb"));
+//builder.Services.AddDbContext<ApplicationDbContext>(options =>
+//    options.UseInMemoryDatabase("AuthDb"));
 
-builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
+builder.Services.AddDbContext<ApplicationDbContext>();
+
+builder.Services.AddIdentity<User, IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
 
-builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddSingleton<ITokenService, TokenService>();
+builder.Services.AddSingleton<IEmailService, EmailService>();
 
+builder.Services.AddScoped<IAuthService, AuthService>();
+
+var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>();
 
 builder.Services.AddCors(opt =>
 {
@@ -48,7 +78,7 @@ builder.Services.Configure<IdentityOptions>(options =>
     options.Password.RequiredUniqueChars = 1;
 
     // Lockout settings.
-    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(30);
     options.Lockout.MaxFailedAccessAttempts = 5;
     options.Lockout.AllowedForNewUsers = true;
 
@@ -78,11 +108,12 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidAudiences = builder.Configuration.GetSection("Jwt:Audience").Get<string[]>(),
-        ValidIssuers = builder.Configuration.GetSection("Jwt:Issuer").Get<string[]>(),
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration.GetSection("Jwt:Key").Get<string>()))
+        ValidAudience = jwtSettings.Audience,
+        ValidIssuer = jwtSettings.Issuer,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Key))
     };
 });
+
 builder.Services.AddControllers();
 
 builder.Services.AddHealthChecks();
@@ -90,7 +121,11 @@ builder.Services.AddHealthChecks();
 builder.Services.AddAuthorization();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
+});
+
 
 var app = builder.Build();
 
@@ -99,6 +134,7 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     app.MapScalarApiReference();
+    //atualizar o banco de dados primeiro
     await AdminSeeder.SeedAsync(app);
 }
 
